@@ -7,6 +7,7 @@ library(tm)
 library(wordcloud)
 library(lubridate)
 
+#load data file, select the required columns and create derived columns: published year, created year
 DataFile <- read_csv("Cleaned_Data.csv")
 df_unique <- DataFile %>% select(title, url, Category, is_paid, num_subscribers, rating, num_reviews, num_published_lectures, created_date, published_date, price_detail__amount, discount_price__amount, C_Months, P_Months) 
 df_unique <- mutate(df_unique, published_year = substr(df_unique$published_date,nchar(df_unique$published_date)-3,nchar(df_unique$published_date)))
@@ -26,6 +27,7 @@ freq_course_disc <- DataFile %>% group_by(Category) %>%
 ui <- dashboardPage(
   dashboardHeader(title = "Recommender"),
   
+   #Shiny app dashboard side bar   
   dashboardSidebar(
     width = 180,
     sidebarMenu(id="tabs",
@@ -37,6 +39,7 @@ ui <- dashboardPage(
     )
     
   ),
+   #1st tab: About/ Introduction   
   dashboardBody(
     tabItems(
     tabItem(tabName = "i_how",
@@ -74,7 +77,7 @@ ui <- dashboardPage(
               )
             )
          ),  
-
+     #2nd tab: dashboard & analysis
     tabItem(tabName = "i_dsh",
             fluidPage(
               titlePanel(h2(strong("Dashboard & Analysis"))),
@@ -92,6 +95,7 @@ ui <- dashboardPage(
                   ),
                   sidebarPanel(
                     width = 12,
+                    #output
                     fluidRow(valueBoxOutput("selected_var"),valueBoxOutput("selected_cou"),valueBoxOutput("selected_mean")),
                     br(),
                     fluidRow(box(title = 'Price-Rating Boxplot',plotOutput("price_boxplot"),solidHeader = TRUE),box(title = 'Pie Chart of Paid-Free',plotOutput("pie"),solidHeader = TRUE)),
@@ -112,7 +116,7 @@ ui <- dashboardPage(
               )
             )
          ),
-
+            #3rd tab: top 10 courses
           tabItem(tabName = "i_top",
             fluidPage(
               titlePanel(h2(strong("Top 10 Courses Recommendation"))),
@@ -129,6 +133,7 @@ ui <- dashboardPage(
                                     'price_t','2. Price',min =0,max = 800,value=c(0,800),step = 1
                                   ))
                   ),
+                    
                   sidebarPanel(
                     width = 9,
                     fluidRow(valueBoxOutput("selected_var2"), valueBoxOutput("selected_price")),
@@ -146,7 +151,7 @@ ui <- dashboardPage(
             )
          ),
 
-
+      #4th tab: appendix
       tabItem(tabName = "i_appx",
               fluidPage(
                 
@@ -168,7 +173,7 @@ ui <- dashboardPage(
           )
         ),
     
-      # Tab Comparison
+      #5th tab: Tab Comparison
       tabItem(tabName = "i_compare",
               fluidPage(
                 titlePanel(h2(strong("Comparison"))),
@@ -236,6 +241,7 @@ server <- function(input, output,session) {
   range_p<-reactive({input$price_t[1]})
   range_p2<-reactive({input$price_t[2]})
   
+   #Bar chart: Top 10 best rated paid courses   
   output$paid_best_rating_course <- renderPlot({
     
     course_bestrat <- DataFile %>% select(title, rating, Category, is_paid,price_detail__amount) %>% filter(Category == input$y_category) %>% filter(is_paid == 'TRUE') %>% filter(price_detail__amount >= input$price_t[1]) %>% filter(price_detail__amount <= input$price_t[2])
@@ -254,6 +260,7 @@ server <- function(input, output,session) {
     plot3
   })
   
+  #Bar chart: Top 10 best rated free courses       
   output$free_best_rating_course <- renderPlot({
     validate(
       need(input$y_category != 'Business', "Business does not have any free course. Please select other category for more free courses"),
@@ -275,6 +282,7 @@ server <- function(input, output,session) {
     plot3
   })
   
+  #Bar chart: Top 10 best subscribed paid courses    
   output$paid_best_subscribed_course <- renderPlot({
     
     course_bestrat2 <- DataFile %>% select(title, num_subscribers, Category, is_paid,is_paid,price_detail__amount) %>% filter(Category == input$y_category) %>% filter(is_paid == 'TRUE') %>% filter(price_detail__amount >= input$price_t[1]) %>% filter(price_detail__amount <= input$price_t[2])
@@ -293,6 +301,7 @@ server <- function(input, output,session) {
     plot3
   })
   
+ #Bar chart: Top 10 best subscribed free courses     
  output$free_best_subscribed_course <- renderPlot({
    validate(
       need(input$y_category != 'Business', "Business does not have any free course. Please select other category for more free courses"),
@@ -312,7 +321,8 @@ server <- function(input, output,session) {
       geom_label(mapping = aes(label = round(num_subscribers, 1)), size = 5, fill = "#F5FFFA", fontface = "bold") + ggtitle("Top 10 best subscribed Free courses")
     plot3
   }) 
-
+  
+  #Failed word cloud T_T
   # output$word_cloud <- renderPlot ({
   #      if(input$v_category == 'Lifestyle'){
   
@@ -337,6 +347,7 @@ server <- function(input, output,session) {
   # wordcloud(words = df$word, freq = df$freq, min.freq = 1,max.words=100, random.order=FALSE,rot.per=0.1 ,colors=brewer.pal(8, "Dark2"))
   # })
   
+   #Histogram: Rating   
   output$rating_hist <- renderPlot ({
   
   freq_course_hist <- df_unique %>% filter(Category == input$v_category)
@@ -346,7 +357,8 @@ server <- function(input, output,session) {
   labs(title="Histogram for Rating", x="Rating", y="Count") + 
   xlim(c(0,5))
   })
-
+  
+  #Histogram: Price
   output$price_hist <- renderPlot ({
   
   freq_course_hist2 <- df_unique %>% filter(Category == input$v_category)
@@ -357,6 +369,7 @@ server <- function(input, output,session) {
   xlim(c(0,800))
   })
 
+  #Histogram: Discounted Price
   output$disc_hist <- renderPlot ({
   
   freq_course_hist_d <- df_unique %>% filter(Category == input$v_category)
@@ -366,7 +379,8 @@ server <- function(input, output,session) {
   labs(title="Histogram for Discounted Price", x="Price (MYR)", y="Count") + 
   xlim(c(0,800))
   })
-
+   
+   #Boxplot: Price-Rating
    output$price_boxplot <- renderPlot ({
   
    freq_course_boxp <- df_unique %>% filter(Category == input$v_category)
@@ -375,7 +389,8 @@ server <- function(input, output,session) {
    geom_boxplot(fill="#69b3a2") + 
    labs(title="Price-Rating Boxplot", x="Rating", y="Price")
    })
-
+  
+   #Histogram: Number of published lectures
   output$lectures_hist <- renderPlot ({
   
   freq_course_hist3 <- df_unique %>% filter(Category == input$v_category)
@@ -389,7 +404,8 @@ server <- function(input, output,session) {
   range_y<-reactive({input$year_s[1]})
   range_y2<-reactive({input$year_s[2]})
      output$pub_line <- renderPlot({
-    
+   
+  #Line chart: Published date
   freq_pubdate <- df_unique %>% filter(Category == input$v_category)
   freqlinepub <- freq_pubdate %>%
             #mutate(published_date = as.date(published_date)) %>%     # update to a datetime variable (if needed)
@@ -406,6 +422,7 @@ server <- function(input, output,session) {
     
   })
   
+  #Line chart: Created date
   output$create_line <- renderPlot({
     
     freq_credate <- df_unique %>% filter(Category == input$v_category)
@@ -422,7 +439,7 @@ server <- function(input, output,session) {
     ggplot(data=freqlinecre, aes(x=created_date,y=N)) + geom_line()
   }) 
   
-  
+  #Pie chart: Percentage of free and paid courses
   output$pie <- renderPlot({
     
     freq_course_paid <- DataFile %>% filter(Category == input$v_category) %>% group_by(is_paid) %>%
@@ -433,7 +450,8 @@ server <- function(input, output,session) {
       coord_polar("y", start=0)+theme_void() + geom_text(aes(label = paste(round(Category_paid / sum(Category_paid) * 100, 1), "%")),colour = 'white',position = position_stack(vjust = 0.5))+ggtitle("Pie chart of Paid-Free")
 
   })
-
+  
+   #appendix
   output$newtbl <- renderDataTable({
     newdata <- df_unique %>% filter (Category == input$category_id)  %>% filter (published_year >= input$year_s[1] ) %>% filter (published_year <= input$year_s[2] )
     
@@ -443,6 +461,7 @@ server <- function(input, output,session) {
     datatable(newdata, escape = FALSE, rownames = FALSE, options = opts)
   })
   
+   #Value output box: Selected category
   output$selected_var <- renderValueBox({ 
 
     valueBox(
@@ -450,7 +469,8 @@ server <- function(input, output,session) {
     color = "purple"
     )
   })
-
+  
+  #Value output box: Selected category
   output$selected_var2 <- renderValueBox({ 
 
     valueBox(
@@ -459,6 +479,7 @@ server <- function(input, output,session) {
     )
   })
   
+   #Value output box: Number of courses in the selected category
   output$selected_cou <- renderValueBox({ 
     freq_course %>% filter(Category == input$v_category)
     
@@ -470,6 +491,7 @@ server <- function(input, output,session) {
     )
   })
   
+  #Value output box: Average rating
   output$selected_mean <- renderValueBox({ 
     freq_course_mean %>% filter(Category == input$v_category)
     
@@ -481,6 +503,7 @@ server <- function(input, output,session) {
     )
   })
   
+  #Value output box: Average Price
   output$selected_price <- renderValueBox({ 
     freq_course_price %>% filter(Category == input$y_category)
     
